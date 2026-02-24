@@ -56,3 +56,58 @@ docker compose logs -f mcp-mssql
         "mcp-mssql-mcp-mssql:latest"
       ]
     }
+
+
+# Claude local MCP configuration
+
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Users\\manoj\\Desktop",
+        "C:\\Users\\manoj\\Downloads"
+      ]
+    },
+    "MCP_DOCKER": {
+      "command": "docker",
+      "args": [
+        "mcp",
+        "gateway",
+        "run"
+      ],
+      "env": {
+        "LOCALAPPDATA": "C:\\Users\\Manoj\\AppData\\Local",
+        "ProgramData": "C:\\ProgramData",
+        "ProgramFiles": "C:\\Program Files"
+      }
+    },
+    "duckduckgo": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "mcp/duckduckgo"
+      ]
+    },
+"mssql": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--network", "host",
+        "--env-file", "C:\\Users\\Manoj\\source\\repos\\AI\\MCP\\mcp-mssql\\.env",
+        "-e", "TRANSPORT=stdio",
+        "mcp-mssql-mcp-mssql:latest"
+      ]
+    }
+  },
+  "preferences": {
+    "sidebarMode": "chat",
+    "coworkScheduledTasksEnabled": false
+  }
+}
