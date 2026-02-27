@@ -1,43 +1,12 @@
-# import sys
-# import os
-# import structlog
-# import logging
-
-# # Ensure src is on path when run directly
-# sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-# from mcp_mssql.config import settings
-# from mcp_mssql.tools.query_tools import mcp
-
-# structlog.configure(
-#     wrapper_class=structlog.make_filtering_bound_logger(
-#         getattr(logging, settings.LOG_LEVEL)
-#     )
-# )
-
-# log = structlog.get_logger(__name__)
-
-# def main():
-#     log.info("mcp.server.starting")
-#     mcp.run(transport="stdio")
-
-# if __name__ == "__main__":
-#     main()
-
 import sys
 import os
 import logging
 import structlog
 
-# ── Redirect ALL output to stderr ─────────────────────────────
-# Claude Desktop stdio transport uses stdout for JSON-RPC.
-# SSE/HTTP transport uses the network — stderr is always safe.
-# Never print to stdout from application code.
 
 def configure_logging():
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
-    # Standard library logging → stderr
     logging.basicConfig(
         stream=sys.stderr,
         level=getattr(logging, log_level, logging.INFO),
@@ -48,14 +17,14 @@ def configure_logging():
         processors=[
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.add_log_level,
-            structlog.dev.ConsoleRenderer(),   # ← no file= parameter
+            structlog.dev.ConsoleRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
             getattr(logging, log_level, logging.INFO)
         ),
-        # PrintLoggerFactory(file=sys.stderr) routes all output to stderr
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),  # ← stderr here
+        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
     )
+
 
 configure_logging()
 
@@ -67,7 +36,7 @@ log = structlog.get_logger(__name__)
 
 def main():
     transport = os.getenv("TRANSPORT", "stdio")
-    host      = os.getenv("HOST", "127.0.0.1")
+    host      = os.getenv("HOST", "0.0.0.0")   # 0.0.0.0 required for Docker
     port      = int(os.getenv("PORT", "8000"))
 
     log.info(
@@ -80,19 +49,24 @@ def main():
     )
 
     if transport == "stdio":
-        # Used by Claude Desktop direct process connection
+        # Claude Desktop — spawns process, pipes JSON-RPC via stdin/stdout
         mcp.run(transport="stdio")
 
-    elif transport == "sse":
-        # Used by Docker / remote connections
-        # Claude Desktop connects via HTTP to http://localhost:8000/sse
+    elif transport == "streamable-http":
+        # Docker / local HTTP — MCP over Streamable HTTP
+        # Client connects to: http://localhost:8000/mcp/
         mcp.run(
-            transport="sse",
+            transport="streamable-http",
             host=host,
             port=port,
         )
+
     else:
-        log.error("mcp.server.unknown_transport", transport=transport)
+        log.error(
+            "mcp.server.unknown_transport",
+            transport=transport,
+            valid_options=["stdio", "streamable-http"],
+        )
         sys.exit(1)
 
 
